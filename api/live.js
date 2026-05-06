@@ -211,13 +211,15 @@ ${results.map(v => {
   const title = escapeHtml(v.title);
 
   return `
-<div class="card-link">
-  <img class="thumb" src="${v.thumbnail}">
-  <div class="card-bottom">
-    <span class="live-badge">● YouTube</span>
-    <div class="title">${title}</div>
+<a href="${v.url}" target="_blank" class="card-link">
+  <div class="card">
+    <img class="thumb" src="${v.thumbnail}">
+    <div class="card-bottom">
+      <span class="live-badge">● YouTube</span>
+      <div class="title">${title}</div>
+    </div>
   </div>
-</div>
+</a>
 `;
 }).join("")}
 </div>
