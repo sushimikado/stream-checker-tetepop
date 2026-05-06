@@ -22,15 +22,20 @@ export default async function handler(req, res) {
       }
     });
 
-    const notionData = await notionRes.json();
+const notionData = await notionRes.json();
 
-    const channelIds = notionData.results
-      .map(page => {
-        const prop = page.properties["YouTubeChannelID"];
-        if (!prop || !prop.rich_text || prop.rich_text.length === 0) return null;
-        return prop.rich_text[0].plain_text;
-      })
-      .filter(Boolean);
+console.log("=== START ===");
+console.log("notionData:", JSON.stringify(notionData, null, 2));
+
+const channelIds = notionData.results
+  .map(page => {
+    const prop = page.properties["YouTubeChannelID"];
+    if (!prop || !prop.rich_text || prop.rich_text.length === 0) return null;
+    return prop.rich_text[0].plain_text;
+  })
+  .filter(Boolean);
+
+console.log("channelIds:", channelIds);
 
     const results = [];
 
@@ -39,6 +44,8 @@ for (const channelId of channelIds) {
 
   const r = await fetch(url);
   const data = await r.json();
+
+  console.log("YouTube raw:", channelId, JSON.stringify(data, null, 2));
 
   const live = (data.items || []).find(
     v => v.snippet?.liveBroadcastContent === "live"
@@ -231,7 +238,3 @@ ${results.map(v => {
     res.status(500).json({ error: e.message });
   }
 }
-
-console.log("=== START ===");
-console.log("channelIds:", channelIds);
-console.log("YouTube raw:", JSON.stringify(data, null, 2));
