@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     });
 
     const notionData = await notionRes.json();
+    console.log("NOTION RESPONSE:", notionData);
 
     const channelIds = notionData.results
       .map(page => {
