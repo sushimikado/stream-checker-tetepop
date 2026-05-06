@@ -224,6 +224,7 @@ ${results.map(v => {
 `;
 
     res.setHeader("Content-Type", "text/html");
+    res.setHeader("Cache-Control", "no-store");
     res.status(200).send(html);
 
   } catch (e) {
