@@ -80,29 +80,33 @@ body {
 
 /* コンテナ */
 .wrapper {
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 20px;
+  align-items: stretch;
 }
 
 .card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   background: white;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
+  transition: transform 0.15s ease;
 }
 
 .card-link {
   text-decoration: none;
   color: inherit;
   display: block;
+  height: 100%;
 }
 
 .card-link:hover .card {
@@ -113,6 +117,7 @@ body {
 .card-bottom {
   padding: 12px 16px 16px 16px;
   text-align: left;
+  flex-grow: 1;
 }
 
 /* サムネ */
@@ -167,6 +172,10 @@ body {
   font-weight: 500;
   line-height: 1.6;
   width: 100%;
+  display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 空状態 */
