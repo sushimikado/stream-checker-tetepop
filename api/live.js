@@ -231,3 +231,7 @@ ${results.map(v => {
     res.status(500).json({ error: e.message });
   }
 }
+
+console.log("=== START ===");
+console.log("channelIds:", channelIds);
+console.log("YouTube raw:", JSON.stringify(data, null, 2));
