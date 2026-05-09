@@ -15,6 +15,7 @@ export default async function handler(req, res) {
 
     const notionRes = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Authorization": `Bearer ${NOTION_TOKEN}`,
         "Content-Type": "application/json",
@@ -42,7 +43,9 @@ console.log("channelIds:", channelIds);
 for (const channelId of channelIds) {
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=5&key=${YOUTUBE_API_KEY}`;
 
-  const r = await fetch(url);
+  const r = await fetch(url, {
+    cache: "no-store"
+  });
   const data = await r.json();
 
   console.log("YouTube raw:", channelId, JSON.stringify(data, null, 2));
