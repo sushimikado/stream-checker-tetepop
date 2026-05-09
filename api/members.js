@@ -94,6 +94,7 @@ function getPlatformIcon(url) {
     }
     
     const notionRes = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
+      cache: "no-store",
       method: "POST",
       headers: {
         "Authorization": `Bearer ${NOTION_TOKEN}`,
@@ -318,9 +319,21 @@ ${members.map(m => `
 </html>
 `;
 
-    res.setHeader("Content-Type", "text/html");
-    res.status(200).send(html);
+    
+res.setHeader("Content-Type", "text/html");
 
+res.setHeader(
+  "Cache-Control",
+  "no-store, no-cache, must-revalidate, proxy-revalidate"
+);
+
+res.setHeader("Pragma", "no-cache");
+res.setHeader("Expires", "0");
+res.setHeader("Surrogate-Control", "no-store");
+
+res.status(200).send(html);
+
+    
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
