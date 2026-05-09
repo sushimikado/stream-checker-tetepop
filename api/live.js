@@ -1,102 +1,67 @@
-```js
-let cacheData = null;
-let cacheTime = 0;
-
 export default async function handler(req, res) {
   try {
-    // ===== 60秒サーバーキャッシュ =====
-    const now = Date.now();
-
-    if (cacheData && now - cacheTime < 60000) {
-      console.log("CACHE HIT");
-
-      res.setHeader("Content-Type", "text/html");
-      res.setHeader(
-        "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate"
-      );
-
-      return res.status(200).send(cacheData);
-    }
-
-    console.log("CACHE MISS");
-
     const NOTION_TOKEN = process.env.NOTION_TOKEN;
     const DATABASE_ID = process.env.NOTION_DATABASE_ID;
     const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
     function escapeHtml(str) {
       if (!str) return "";
-
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+      return str.replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[m]);
     }
 
-    // ===== Notion取得 =====
-    const notionRes = await fetch(
-      `https://api.notion.com/v1/databases/${DATABASE_ID}/query`,
-      {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          "Authorization": `Bearer ${NOTION_TOKEN}`,
-          "Content-Type": "application/json",
-          "Notion-Version": "2022-06-28"
-        }
-      }
-    );
+    // 1. Notionからのデータ取得（ここも少しキャッシュを意識）
+    const notionRes = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${NOTION_TOKEN}`,
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+      },
+      next: { revalidate: 300 } // Notionの応答もキャッシュ可能なら設定
+    });
 
     const notionData = await notionRes.json();
-
     const channelIds = notionData.results
-      .map(page => {
-        const prop = page.properties["YouTubeChannelID"];
-
-        if (!prop || !prop.rich_text || prop.rich_text.length === 0) {
-          return null;
-        }
-
-        return prop.rich_text[0].plain_text;
-      })
+      .map(page => page.properties["YouTubeChannelID"]?.rich_text?.[0]?.plain_text)
       .filter(Boolean);
 
-    const results = [];
+    // 2. YouTube APIの呼び出しを並列化 + エラーハンドリング
+    const results = await Promise.all(
+      channelIds.map(async (channelId) => {
+        try {
+          // ライブ中かどうかを判定する最小限のクエリ
+          const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&eventType=live&key=${YOUTUBE_API_KEY}`;
+          
+          const r = await fetch(url);
+          const data = await r.json();
 
-    // ===== YouTube取得 =====
-    for (const channelId of channelIds) {
-      const url =
-        `https://www.googleapis.com/youtube/v3/search` +
-        `?part=snippet` +
-        `&channelId=${channelId}` +
-        `&type=video` +
-        `&order=date` +
-        `&maxResults=5` +
-        `&key=${YOUTUBE_API_KEY}`;
+          // クォータ超過などのエラーチェック
+          if (data.error) {
+            console.error(`YouTube API Error (${channelId}):`, data.error.message);
+            return null;
+          }
 
-      const r = await fetch(url, {
-        cache: "no-store"
-      });
+          const live = data.items?.[0];
+          if (live) {
+            return {
+              title: live.snippet.title,
+              url: `https://youtube.com/watch?v=${live.id.videoId}`,
+              thumbnail: live.snippet.thumbnails?.medium?.url || ""
+            };
+          }
+        } catch (err) {
+          return null;
+        }
+        return null;
+      })
+    );
 
-      const data = await r.json();
+    const activeLives = results.filter(Boolean);
 
-      const live = (data.items || []).find(
-        v => v.snippet?.liveBroadcastContent === "live"
-      );
-
-      if (live) {
-        results.push({
-          title: live.snippet.title,
-          url: `https://youtube.com/watch?v=${live.id.videoId}`,
-          thumbnail: live.snippet.thumbnails?.medium?.url || ""
-        });
-      }
-    }
-
-    // ===== HTML =====
-    const html = `
+// ===== HTML =====
+const html = `
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -292,26 +257,14 @@ ${results.map(v => {
 </html>
 `;
 
-    // ===== キャッシュ保存 =====
-    cacheData = html;
-    cacheTime = now;
-
-    // ===== レスポンス =====
+// 3. 強力なキャッシュ制御
+    // s-maxage: VercelのCDNに5分間キャッシュさせる
+    // stale-while-revalidate: キャッシュが切れた後、裏で更新しつつ古いデータを1分間許容する
     res.setHeader("Content-Type", "text/html");
-
-    res.setHeader(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate"
-    );
-
+    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
     res.status(200).send(html);
 
   } catch (e) {
-    console.error(e);
-
-    res.status(500).json({
-      error: e.message
-    });
+    res.status(500).json({ error: e.message });
   }
 }
-```
